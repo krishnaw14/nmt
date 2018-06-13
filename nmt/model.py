@@ -509,13 +509,38 @@ class BaseModel(object):
             helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
                 self.embedding_decoder, start_tokens, end_token)
 
-          # Decoder
-          my_decoder = tf.contrib.seq2seq.BasicDecoder(
-              cell,
-              helper,
-              decoder_initial_state,
-              output_layer=self.output_layer  # applied per timestep
-          )
+          # Decoder Multiple definitions
+          if tf.argmax(out_z==0):
+            my_decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell_1,
+                helper,
+                decoder_initial_state_1,
+                output_layer=self.output_layer  # applied per timestep
+            )
+
+          if tf.argmax(out_z==1):
+            my_decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell_2,
+                helper,
+                decoder_initial_state_2,
+                output_layer=self.output_layer  # applied per timestep
+            )
+
+          if tf.argmax(out_z==2):
+            my_decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell_3,
+                helper,
+                decoder_initial_state_3,
+                output_layer=self.output_layer  # applied per timestep
+            )
+
+          if tf.argmax(out_z==3):
+            my_decoder = tf.contrib.seq2seq.BasicDecoder(
+                cell_4,
+                helper,
+                decoder_initial_state_4,
+                output_layer=self.output_layer  # applied per timestep
+            )                      
 
         # Dynamic decoding
         outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(
