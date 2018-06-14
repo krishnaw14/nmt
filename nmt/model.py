@@ -21,6 +21,7 @@ from __future__ import print_function
 import abc
 
 import tensorflow as tf
+import numpy as np
 
 from tensorflow.python.layers import core as layers_core
 
@@ -374,12 +375,19 @@ class BaseModel(object):
     iterator = self.iterator
 
     # maximum_iteration: The maximum decoding steps.
-    maximum_iterations = self._get_infer_maximum_iterations(
-        hparams, iterator.source_sequence_length)
+    maximum_iterations = self._get_infer_maximum_iterations(hparams, iterator.source_sequence_length)
 
     ## 1 layer Neural network for the hidden variable Z
 
     # Defining parameters
+    num_units=encoder_outputs.shape[2].value
+    batch_size=encoder_outputs.shape[1].value
+    if batch_size == None:
+      batch_size = 128
+    print("SHAPES!!!!")
+    print("num_units",num_units, type(num_units))
+    print("batch_size",batch_size, type(batch_size))
+    print(encoder_outputs.shape)
     x_z=encoder_outputs[-1,:,:]
     W_z = tf.Variable(tf.random_normal([num_units,4]))
     b_z = tf.Variable(tf.random_normal([batch_size,4]) )
@@ -393,14 +401,6 @@ class BaseModel(object):
       cell_3, decoder_initial_state_3 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
 
       cell_4, decoder_initial_state_4 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state,iterator.source_sequence_length)
-
-
-
-    ## Old Decoder Declaration
-    '''with tf.variable_scope("decoder") as decoder_scope:
-      cell, decoder_initial_state = self._build_decoder_cell(
-          hparams, encoder_outputs, encoder_state,
-          iterator.source_sequence_length)'''
 
       ## Train or eval
       if self.mode != tf.contrib.learn.ModeKeys.INFER:
@@ -427,14 +427,14 @@ class BaseModel(object):
 
 
 
-        # Dynamic decoding
+         # Dynamic decoding
         if tf.argmax(out_z,1)==0:
           outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_1, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        if tf.argmax(out_z,1)==1:
+        elif tf.argmax(out_z,1)==1:
           outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_2, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        if tf.argmax(out_z,1)==2:
+        elif tf.argmax(out_z,1)==2:
           outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_3, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        if tf.argmax(out_z,1)==3:
+        else:
           outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_4, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)                              
 
         sample_id = outputs.sample_id
@@ -555,7 +555,7 @@ class BaseModel(object):
                 swap_memory=True,
                 scope=decoder_scope)            
 
-          if tf.argmax(out_z,1)==1:
+          elif tf.argmax(out_z,1)==1:
             my_decoder_2 = tf.contrib.seq2seq.BasicDecoder(
                 cell_2,
                 helper,
@@ -569,7 +569,7 @@ class BaseModel(object):
                 swap_memory=True,
                 scope=decoder_scope)            
 
-          if tf.argmax(out_z,1)==2:
+          elif tf.argmax(out_z,1)==2:
             my_decoder_3 = tf.contrib.seq2seq.BasicDecoder(
                 cell_3,
                 helper,
@@ -583,7 +583,7 @@ class BaseModel(object):
                 swap_memory=True,
                 scope=decoder_scope)
 
-          if tf.argmax(out_z,1)==3:
+          else:
             my_decoder_4 = tf.contrib.seq2seq.BasicDecoder(
                 cell_4,
                 helper,
@@ -642,6 +642,7 @@ class BaseModel(object):
 
     loss = tf.reduce_sum(
         crossent * target_weights) / tf.to_float(self.batch_size)
+    print ("CROSSENT AND TARGET_WEIGHTS SHAPE:-",crossent.shape, target_weights.shape)
     return loss
 
   def _get_infer_summary(self, hparams):
