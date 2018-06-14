@@ -380,8 +380,9 @@ class BaseModel(object):
     ## 1 layer Neural network for the hidden variable Z
 
     # Defining parameters
-    W_z = tf.Variable(tf.random_normal([Shape]) )
-    b_z = tf.Variable(tf.random_normal([Shape]) )
+    x_z=encoder_outputs[-1,:,:]
+    W_z = tf.Variable(tf.random_normal([num_units,4]))
+    b_z = tf.Variable(tf.random_normal([batch_size,4]) )
     out_z=tf.nn.softmax(tf.matmul(x_z,W_z)+b_z)
 
     with tf.variable_scope("decoder") as decoder_scope:
