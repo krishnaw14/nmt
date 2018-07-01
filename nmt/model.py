@@ -708,18 +708,12 @@ class Model2(Model):
     # Defining parameters
     num_units=encoder_outputs.shape[2].value
     batch_size=encoder_outputs.shape[1].value
-    if batch_size == None:
-      batch_size = 128
-    print("SHAPES!!!!")
-    print("num_units",num_units, type(num_units))
-    print("batch_size",batch_size, type(batch_size))
-    print(encoder_outputs.shape)
     x_z=encoder_outputs[-1,:,:]
     W_z = tf.Variable(tf.random_normal([num_units,4]))
-    b_z = tf.Variable(tf.random_normal([batch_size,4]) )
+    b_z = tf.Variable(tf.random_normal([1,4]) )
     out_z=tf.nn.softmax(tf.matmul(x_z,W_z)+b_z)
 
-    with tf.variable_scope("decoder") as decoder_scope:
+    with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE) as decoder_scope:
       cell_1, decoder_initial_state_1 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
 
       cell_2, decoder_initial_state_2 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
@@ -754,16 +748,17 @@ class Model2(Model):
 
 
          # Dynamic decoding
-        if tf.argmax(out_z,1)==0:
-          outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_1, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        elif tf.argmax(out_z,1)==1:
-          outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_2, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        elif tf.argmax(out_z,1)==2:
-          outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_3, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-        else:
-          outputs, final_context_state, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_4, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)                              
+        outputs_1, final_context_state_1, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_1, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_2, final_context_state_2, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_2, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_3, final_context_state_3, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_3, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_4, final_context_state_4, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_4, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)                              
 
-        sample_id = outputs.sample_id
+        sample_id_1 = outputs_1.sample_id
+        sample_id_2 = outputs_2.sample_id
+        sample_id_3 = outputs_3.sample_id
+        sample_id_4 = outputs_4.sample_id
+        sample_id = [sample_id_1, sample_id_2, sample_id_3, sample_id_4]
+        final_context_state = [final_context_state_1, final_context_state_2, final_context_state_3, final_context_state_4]
 
         # Note: there's a subtle difference here between train and inference.
         # We could have set output_layer when create my_decoder
@@ -771,7 +766,12 @@ class Model2(Model):
         # We chose to apply the output_layer to all timesteps for speed:
         #   10% improvements for small models & 20% for larger ones.
         # If memory is a concern, we should apply output_layer per timestep.
-        logits = self.output_layer(outputs.rnn_output)
+        logits_1 = self.output_layer(outputs_1.rnn_output)
+        logits_2 = self.output_layer(outputs_2.rnn_output)
+        logits_3 = self.output_layer(outputs_3.rnn_output)
+        logits_4 = self.output_layer(outputs_4.rnn_output)
+
+        logits = [logits_1, logits_2, logits_3, logits_4, out_z]
 
       ## Inference
       else:
@@ -931,6 +931,29 @@ class Model2(Model):
           sample_id = outputs.sample_id
 
     return logits, sample_id, final_context_state
+
+  def _compute_loss(self, logits):
+    """Compute optimization loss."""
+    target_output = self.iterator.target_output
+    out_z = logits[-1]
+    loss = 0
+
+    for i in range(len(logits)-1):
+      logit = logits[i]
+      if self.time_major:
+        target_output = tf.transpose(target_output)
+      max_time = self.get_max_time(target_output)
+      crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
+          labels=target_output, logits=logit)
+      crossent = crossent*out_z[i]
+      target_weights = tf.sequence_mask(
+          self.iterator.target_sequence_length, max_time, dtype=logit.dtype)
+      if self.time_major:
+        target_weights = tf.transpose(target_weights)
+
+      loss_i = tf.reduce_sum(crossent * target_weights)
+      loss += loss_i
+    return loss
 
 
 
