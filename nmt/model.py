@@ -945,14 +945,16 @@ class Model2(Model):
       max_time = self.get_max_time(target_output)
       crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(
           labels=target_output, logits=logit)
-      crossent = crossent*out_z[i]
+      #crossent = crossent*out_z[i]
       target_weights = tf.sequence_mask(
           self.iterator.target_sequence_length, max_time, dtype=logit.dtype)
       if self.time_major:
         target_weights = tf.transpose(target_weights)
 
-      loss_i = tf.reduce_sum(crossent * target_weights)
-      loss += loss_i
+      loss_i = tf.reduce_sum(crossent * target_weights, [1,2])
+      loss_i *= out_z[:,i]
+      Loss_i = reduce_sum(loss_i)
+      loss += Loss_i
     return loss
 
 
