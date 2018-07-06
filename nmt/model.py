@@ -797,12 +797,16 @@ class Model2(Model):
           
 
           my_decoder_1, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),0), beam_decoder_output(cell_1, decoder_initial_state_1 ))
+          my_decoder_1 = tf.Print(my_decoder_1, [my_decoder_1, outputs, out_z] , "DECODER 1!!!!!!!!!")
 
           my_decoder_2, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),1), beam_decoder_output(cell_2, decoder_initial_state_2 ))
+          my_decoder_2 = tf.Print(my_decoder_2, [my_decoder_2, outputs, out_z], "DECODER 2!!!!!!!!!" )
 
           my_decoder_3, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),2), beam_decoder_output(cell_3, decoder_initial_state_3 ))
+          my_decoder_3 = tf.Print(my_decoder_3, [my_decoder_3, outputs, out_z], "DECODER 3!!!!!!!!!" )
 
-          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), beam_decoder_output(cell_4, decoder_initial_state_4 ))           
+          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), beam_decoder_output(cell_4, decoder_initial_state_4 ))
+          my_decoder_4 = tf.Print(my_decoder_4, [my_decoder_4, outputs, out_z], "DECODER 4!!!!!!!!!" )           
 
 
         else:
