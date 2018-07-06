@@ -30,7 +30,7 @@ from .utils import misc_utils as utils
 
 utils.check_tensorflow_version()
 
-__all__ = ["BaseModel", "Model" , "Model2"]
+__all__ = ["BaseModel", "Model" , "Model2", "Model3"]
 
 
 class BaseModel(object):
@@ -682,13 +682,13 @@ class Model2(Model):
   and a multi-layer recurrent neural network decoder.
   """
 
-  def beam_decoder_output(cell_i, decoder_initial_state_i):
-    my_decoder = tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_i, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_i, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight)
-    outputs, final_context_state, temp = tf.contrib.seq2seq.dynamic_decode( my_decoder, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
-    return my_decoder, outputs, final_context_state, temp
 
-  def greedy_decoder_output(cell_i, decoder_initial_state_i):
+
+  def greedy_decoder_output(cell_i, decoder_initial_state_i, i):
     my_decoder = tf.contrib.seq2seq.BasicDecoder(cell_i, helper, decoder_initial_state_i, output_layer=self.output_layer)
+    msg = "DECODER "+str(i)+"!!!"
+    print(msg)
+    my_decoder = tf.Print(my_decoder, [my_decoder, out_z] , msg)
     outputs, final_context_state, temp = tf.contrib.seq2seq.dynamic_decode( my_decoder, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)  
     return my_decoder, outputs, final_context_state, temp
 
@@ -795,18 +795,19 @@ class Model2(Model):
         if beam_width > 0:
 
           
+          print("Inference beam Decoding!!!!!!!!!!")
+          my_decoder_1 = tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_1, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_1, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight)
 
-          my_decoder_1, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),0), beam_decoder_output(cell_1, decoder_initial_state_1 ))
-          my_decoder_1 = tf.Print(my_decoder_1, [my_decoder_1, outputs, out_z] , "DECODER 1!!!!!!!!!")
+          my_decoder_2 = tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_2, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_2, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight)
 
-          my_decoder_2, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),1), beam_decoder_output(cell_2, decoder_initial_state_2 ))
-          my_decoder_2 = tf.Print(my_decoder_2, [my_decoder_2, outputs, out_z], "DECODER 2!!!!!!!!!" )
+          my_decoder_3 = tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_3, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_3, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight)
 
-          my_decoder_3, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),2), beam_decoder_output(cell_3, decoder_initial_state_3 ))
-          my_decoder_3 = tf.Print(my_decoder_3, [my_decoder_3, outputs, out_z], "DECODER 3!!!!!!!!!" )
+          my_decoder_4 = tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_4, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_4, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight)
 
-          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), beam_decoder_output(cell_4, decoder_initial_state_4 ))
-          my_decoder_4 = tf.Print(my_decoder_4, [my_decoder_4, outputs, out_z], "DECODER 4!!!!!!!!!" )           
+          outputs, final_context_state, _ = tf.case({tf.equal(tf.argmax(out_z,1), 0): lambda: tf.contrib.seq2seq.dynamic_decode( my_decoder_1, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope),
+                                                     tf.equal(tf.argmax(out_z,1), 1): lambda:  tf.contrib.seq2seq.dynamic_decode( my_decoder_2, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope), 
+                                                     tf.equal(tf.argmax(out_z,1), 2): lambda: tf.contrib.seq2seq.dynamic_decode( my_decoder_3, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope) }, 
+                                                     default = lambda:  tf.contrib.seq2seq.dynamic_decode( my_decoder_4, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope))
 
 
         else:
@@ -822,13 +823,23 @@ class Model2(Model):
                 self.embedding_decoder, start_tokens, end_token)
 
           # Decoder Multiple definitions
-          my_decoder_1, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),0), greedy_decoder_output(cell_1, decoder_initial_state_1 ))
+          print("Inference greedy Decoding!!!!!!!!!!")
+          my_decoder_1 = tf.cond( tf.equal(tf.argmax(out_z,1),0), tf.contrib.seq2seq.BasicDecoder(cell_1, helper, decoder_initial_state_1, output_layer=self.output_layer))
+          my_decoder_1 = tf.Print(my_decoder_1, [my_decoder, out_z] , "DECODER "+str(1)+"!!!")
+          outputs, final_context_state, _ = tf.cond(tf.equal(tf.argmax(out_z,1),0), tf.contrib.seq2seq.dynamic_decode( my_decoder_1, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope), lambda: tf.zeros(my_decoder_1.shape, tf.float32))
 
-          my_decoder_2, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),1), greedy_decoder_output(cell_2, decoder_initial_state_2 ))
+          my_decoder_2 = tf.cond( tf.equal(tf.argmax(out_z,1),1), tf.contrib.seq2seq.BasicDecoder(cell_2, helper, decoder_initial_state_2, output_layer=self.output_layer))
+          my_decoder_2 = tf.Print(my_decoder_2, [my_decoder_2, out_z] , "DECODER "+str(2)+"!!!")
+          outputs, final_context_state, _ = tf.cond(tf.equal(tf.argmax(out_z,1),0), tf.contrib.seq2seq.dynamic_decode( my_decoder_2, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope), lambda: tf.zeros(my_decoder_2.shape, tf.float32))
 
-          my_decoder_3, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),2), greedy_decoder_output(cell_3, decoder_initial_state_3 ))
+          my_decoder_3 = tf.cond( tf.equal(tf.argmax(out_z,1),2), tf.contrib.seq2seq.BasicDecoder(cell_3, helper, decoder_initial_state_3, output_layer=self.output_layer))
+          my_decoder_3 = tf.Print(my_decoder_3, [my_decoder_3, out_z] , "DECODER "+str(3)+"!!!")
+          outputs, final_context_state, _ = tf.cond(tf.equal(tf.argmax(out_z,2),0), tf.contrib.seq2seq.dynamic_decode( my_decoder_3, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope), lambda: tf.zeros(my_decoder_3.shape, tf.float32))
 
-          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), greedy_decoder_output(cell_4, decoder_initial_state_4 ))                       
+          my_decoder_4 = tf.cond( tf.equal(tf.argmax(out_z,1),3), tf.contrib.seq2seq.BasicDecoder(cell_4, helper, decoder_initial_state_4, output_layer=self.output_layer))
+          my_decoder_4 = tf.cond( tf.equal(tf.argmax(out_z,1),3), tf.contrib.seq2seq.BeamSearchDecoder(cell=cell_4, embedding=self.embedding_decoder, start_tokens=start_tokens, end_token=end_token, initial_state=decoder_initial_state_4, beam_width=beam_width, output_layer=self.output_layer, length_penalty_weight=length_penalty_weight))
+          outputs, final_context_state, _ = tf.cond(tf.equal(tf.argmax(out_z,1),3), tf.contrib.seq2seq.dynamic_decode( my_decoder_4, maximum_iterations=maximum_iterations, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope), lambda: tf.zeros(my_decoder_4.shape, tf.float32))
+                       
 
         if beam_width > 0:
           logits = tf.no_op()
@@ -858,12 +869,157 @@ class Model2(Model):
       if self.time_major:
         target_weights = tf.transpose(target_weights)
 
-      loss_i = tf.reduce_sum(crossent * target_weights, [1,2])
+      loss_i = tf.reduce_sum(crossent * target_weights, [1])
       loss_i *= out_z[:,i]
-      Loss_i = reduce_sum(loss_i)
+      Loss_i = tf.reduce_sum(loss_i)
       loss += Loss_i
     return loss
 
+  
 
+class Model3(Model):
+  """Sequence-to-sequence dynamic model.
+
+  This class implements a multi-layer recurrent neural network as encoder,
+  and a multi-layer recurrent neural network decoder.
+  """
+
+  def _build_decoder(self, encoder_outputs, encoder_state, hparams):
+    """Build and run a RNN decoder with a final projection layer.
+
+    Args:
+      encoder_outputs: The outputs of encoder for every time step.
+      encoder_state: The final state of the encoder.
+      hparams: The Hyperparameters configurations.
+
+    Returns:
+      A tuple of final logits and final decoder state:
+        logits: size [time, batch_size, vocab_size] when time_major=True.
+    """
+    tgt_sos_id = tf.cast(self.tgt_vocab_table.lookup(tf.constant(hparams.sos)),
+                         tf.int32)
+    tgt_eos_id = tf.cast(self.tgt_vocab_table.lookup(tf.constant(hparams.eos)),
+                         tf.int32)
+    iterator = self.iterator
+
+    # maximum_iteration: The maximum decoding steps.
+    maximum_iterations = self._get_infer_maximum_iterations(hparams, iterator.source_sequence_length)
+
+    ## 1 layer Neural network for the hidden variable Z
+
+    # Defining parameters
+    num_units=encoder_outputs.shape[2].value
+    batch_size=encoder_outputs.shape[1].value
+    x_z=encoder_outputs[-1,:,:]
+    W_z = tf.Variable(tf.random_normal([num_units,4]))
+    b_z = tf.Variable(tf.random_normal([1,4]) )
+    out_z=tf.nn.softmax(tf.matmul(x_z,W_z)+b_z)
+
+    with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE) as decoder_scope:
+      cell_1, decoder_initial_state_1 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
+
+      cell_2, decoder_initial_state_2 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
+
+      cell_3, decoder_initial_state_3 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state, iterator.source_sequence_length)
+
+      cell_4, decoder_initial_state_4 = self._build_decoder_cell(hparams, encoder_outputs, encoder_state,iterator.source_sequence_length)
+
+      ## Train or eval
+      if self.mode != tf.contrib.learn.ModeKeys.INFER:
+        # decoder_emp_inp: [max_time, batch_size, num_units]
+        target_input = iterator.target_input
+        if self.time_major:
+          target_input = tf.transpose(target_input)
+        decoder_emb_inp = tf.nn.embedding_lookup(
+            self.embedding_decoder, target_input)
+
+        # Helper
+        helper = tf.contrib.seq2seq.TrainingHelper(
+            decoder_emb_inp, iterator.target_sequence_length,
+            time_major=self.time_major)
+
+        # Decoder - Multiple definitions
+        my_decoder_1 = tf.contrib.seq2seq.BasicDecoder(cell_1, helper, decoder_initial_state_1,)
+
+        my_decoder_2 = tf.contrib.seq2seq.BasicDecoder(cell_2, helper, decoder_initial_state_2,)
+
+        my_decoder_3 = tf.contrib.seq2seq.BasicDecoder(cell_3, helper, decoder_initial_state_3,)
+
+        my_decoder_4 = tf.contrib.seq2seq.BasicDecoder(cell_4, helper, decoder_initial_state_4,)
+
+
+
+         # Dynamic decoding
+        outputs_1, final_context_state_1, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_1, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_2, final_context_state_2, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_2, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_3, final_context_state_3, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_3, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)
+        outputs_4, final_context_state_4, _ = tf.contrib.seq2seq.dynamic_decode(my_decoder_4, output_time_major=self.time_major, swap_memory=True, scope=decoder_scope)                              
+
+        sample_id_1 = outputs_1.sample_id
+        sample_id_2 = outputs_2.sample_id
+        sample_id_3 = outputs_3.sample_id
+        sample_id_4 = outputs_4.sample_id
+        sample_id = [sample_id_1, sample_id_2, sample_id_3, sample_id_4]
+        final_context_state = final_context_state_1*out_z[0] + final_context_state_2*out_z[1] + final_context_state_3*out_z[2] + final_context_state_4*out_z[3]
+
+        # Note: there's a subtle difference here between train and inference.
+        # We could have set output_layer when create my_decoder
+        #   and shared more code between train and inference.
+        # We chose to apply the output_layer to all timesteps for speed:
+        #   10% improvements for small models & 20% for larger ones.
+        # If memory is a concern, we should apply output_layer per timestep.
+        logits = outputs_1*out_z[0]+ outputs_2*out_z[1] + outputs_3*out_z[2] + outputs_4*out_z[3]
+
+
+      ## Inference
+      else:
+        beam_width = hparams.beam_width
+        length_penalty_weight = hparams.length_penalty_weight
+        start_tokens = tf.fill([self.batch_size], tgt_sos_id)
+        end_token = tgt_eos_id
+
+        if beam_width > 0:
+
+          
+
+          my_decoder_1, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),0), beam_decoder_output(cell_1, decoder_initial_state_1, 1 ))
+
+          my_decoder_2, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),1), beam_decoder_output(cell_2, decoder_initial_state_2, 2 ))
+
+          my_decoder_3, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),2), beam_decoder_output(cell_3, decoder_initial_state_3, 3 ))
+
+          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), beam_decoder_output(cell_4, decoder_initial_state_4, 4 ))
+
+
+        else:
+          # Helper
+          sampling_temperature = hparams.sampling_temperature
+          if sampling_temperature > 0.0:
+            helper = tf.contrib.seq2seq.SampleEmbeddingHelper(
+                self.embedding_decoder, start_tokens, end_token,
+                softmax_temperature=sampling_temperature,
+                seed=hparams.random_seed)
+          else:
+            helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                self.embedding_decoder, start_tokens, end_token)
+
+          # Decoder Multiple definitions
+          print("Inference Decoding!!!!!!!!!!")
+          my_decoder_1, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),0), greedy_decoder_output(cell_1, decoder_initial_state_1, 1 ))
+
+          my_decoder_2, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),1), greedy_decoder_output(cell_2, decoder_initial_state_2, 2 ))
+
+          my_decoder_3, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),2), greedy_decoder_output(cell_3, decoder_initial_state_3, 3 ))
+
+          my_decoder_4, outputs, final_context_state, _ = tf.cond( tf.equal(tf.argmax(out_z,1),3), greedy_decoder_output(cell_4, decoder_initial_state_4, 4 ))                       
+
+        if beam_width > 0:
+          logits = tf.no_op()
+          sample_id = outputs.predicted_ids
+        else:
+          logits = outputs.rnn_output
+          sample_id = outputs.sample_id
+
+    return logits, sample_id, final_context_state
 
 
